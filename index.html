@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Học Từ Vựng - VS Code Pro</title>
+    <!-- Use Fira Code for programming ligatures -->
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* VS Code Dark+ Theme Colors */
+            --bg-main: #1e1e1e;
+            --bg-sidebar: #252526;
+            --bg-activity: #333333;
+            --bg-titlebar: #323233;
+            --bg-statusbar: #007acc;
+            --bg-tab-active: #1e1e1e;
+            --bg-row-hover: #2a2d2e;
+            --bg-row-active: #23272a;
+            --bg-row-skipped: #1a1a1a;
+            
+            --text-main: #d4d4d4;
+            --text-muted: #858585;
+            --text-white: #ffffff;
+            
+            /* Syntax Highlighting */
+            --syn-keyword: #569cd6;    /* const, let, function */
+            --syn-control: #c586c0;    /* return, if */
+            --syn-var: #9cdcfe;        /* variables */
+            --syn-func: #dcdcaa;       /* function names */
+            --syn-string: #ce9178;     /* "strings" */
+            --syn-comment: #6a9955;    /* // comments */
+            --syn-operator: #d4d4d4;   /* = , : ; */
+            --syn-bracket: #ffd700;    /* { } ( ) */
+            --syn-bracket2: #da70d6;   /* nested brackets */
+            --syn-class: #4ec9b0;      /* correct token equivalent to class name */
+            
+            --accent: #007fd4;
+            --text-error: #f48771;
+            --text-skipped: #d7ba7d;   /* orange-ish for skipped */
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Title Bar */
+        .title-bar {
+            display: flex; align-items: center; background-color: var(--bg-titlebar);
+            height: 30px; font-size: 13px; padding: 0 10px; user-select: none;
+        }
+        .window-controls { display: flex; gap: 8px; margin-right: 15px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; cursor: pointer; }
+        .dot.close { background-color: #ff5f56; }
+        .dot.minimize { background-color: #ffbd2e; }
+        .dot.maximize { background-color: #27c93f; }
+        .menu-bar { display: flex; gap: 15px; }
+        .menu-bar span { cursor: pointer; padding: 2px 6px; border-radius: 3px; }
+        .menu-bar span:hover { background-color: rgba(255, 255, 255, 0.1); }
+        .title { margin: 0 auto; color: var(--text-muted); }
+
+        /* Main Body Frame */
+        .main-body { display: flex; flex: 1; overflow: hidden; }
+
+        /* Activity Bar */
+        .activity-bar {
+            width: 48px; background-color: var(--bg-activity);
+            display: flex; flex-direction: column; align-items: center; padding-top: 10px;
+        }
+        .icon { font-size: 24px; margin-bottom: 20px; cursor: pointer; opacity: 0.5; }
+        .icon:hover { opacity: 0.8; }
+        .icon.active { opacity: 1; border-left: 2px solid var(--text-white); padding-left: 2px; }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px; background-color: var(--bg-sidebar); border-right: 1px solid #333;
+            display: flex; flex-direction: column;
+        }
+        .sidebar-header { font-size: 11px; padding: 10px 20px; color: var(--text-muted); letter-spacing: 1px; }
+        .sidebar-section { padding: 10px; }
+        .section-title { font-size: 11px; font-weight: bold; color: var(--text-main); margin-bottom: 10px; cursor: pointer; }
+        .section-title::before { content: '▼'; font-size: 8px; margin-right: 5px; }
+        
+        .upload-area { margin: 15px 10px; display: flex; flex-direction: column; gap: 10px; }
+        #file-upload { display: none; }
+        .upload-btn {
+            background-color: var(--accent); color: var(--text-white); border: none;
+            padding: 8px 12px; border-radius: 2px; cursor: pointer; font-size: 13px; text-align: center;
+        }
+        .upload-btn:hover { background-color: #006bb3; }
+        .upload-hint { font-size: 11px; color: var(--text-muted); text-align: center; }
+
+        .file-list { margin-top: 10px; }
+        .file-item { padding: 4px 20px; cursor: pointer; font-size: 13px; }
+        .file-item:hover { background-color: rgba(255, 255, 255, 0.05); }
+        .file-item.active { background-color: rgba(255, 255, 255, 0.1); color: var(--text-white); display: flex; align-items: center; }
+        
+        .hidden { display: none !important; }
+
+        /* Editor Area */
+        .editor-area { flex: 1; display: flex; flex-direction: column; background-color: var(--bg-main); }
+        .editor-tabs { display: flex; background-color: var(--bg-sidebar); height: 35px; overflow-x: auto; }
+        .tab {
+            background-color: var(--bg-tab-active); color: var(--text-white); padding: 0 15px;
+            display: flex; align-items: center; gap: 10px; font-size: 13px; border-top: 1px solid var(--accent);
+            cursor: pointer; min-width: 150px;
+        }
+        .breadcrumbs { padding: 5px 15px; font-size: 12px; color: var(--text-muted); box-shadow: 0 1px 3px rgba(0,0,0,0.2); z-index: 10; }
+        
+        .editor-content {
+            flex: 1; overflow-y: auto; font-family: 'Fira Code', Consolas, Monaco, monospace;
+            font-size: 14.5px; line-height: 1.6; padding-bottom: 80px; scroll-behavior: smooth;
+        }
+
+        .empty-state {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100%; color: var(--text-muted); text-align: center;
+        }
+        .empty-state h2 { color: var(--text-white); margin-bottom: 15px; font-weight: 400; }
+        .empty-state p { margin-bottom: 5px; }
+
+        /* Syntax Highlight Colors */
+        .syn-keyword { color: var(--syn-keyword); }
+        .syn-control { color: var(--syn-control); }
+        .syn-var { color: var(--syn-var); }
+        .syn-func { color: var(--syn-func); }
+        .syn-string { color: var(--syn-string); }
+        .syn-comment { color: var(--syn-comment); font-style: italic; }
+        .syn-operator { color: var(--syn-operator); }
+        .syn-bracket { color: var(--syn-bracket); }
+        .syn-bracket2 { color: var(--syn-bracket2); }
+        
+        /* Realistic Code Rows */
+        .code-container { padding-top: 10px; }
+        .code-row { 
+            display: flex; 
+            padding: 2px 15px 2px 0; 
+            border-left: 3px solid transparent; 
+            transition: background-color 0.2s;
+        }
+        .code-row:hover { background-color: var(--bg-row-hover); }
+        .code-row.active { background-color: var(--bg-row-active); border-left-color: var(--accent); }
+        
+        .line-number { 
+            width: 45px; min-width: 45px; text-align: right; 
+            padding-right: 15px; color: #5a5a5a; 
+            user-select: none; font-variant-numeric: tabular-nums;
+        }
+        .code-row.active .line-number { color: #c6c6c6; }
+        
+        .code-content { 
+            display: flex; flex: 1; align-items: center; flex-wrap: wrap; gap: 4px; 
+            /* Notice: padding-left injected via JS for indentation */
+        }
+
+        /* Input behaving like code chunk */
+        input.code-input {
+            background: transparent; border: none;
+            color: var(--text-white); 
+            font-family: inherit; font-size: inherit;
+            width: 140px; outline: none; padding: 0 4px;
+            caret-color: var(--text-white);
+            border-bottom: 1px dotted #555;
+            transition: all 0.2s;
+        }
+        input.code-input:focus { background-color: rgba(255, 255, 255, 0.05); border-bottom: 1px solid var(--accent); }
+
+        /* Correct / Error / Skipped States */
+        .code-row.success .code-input {
+            display: none; /* Hide input when correct, show span instead */
+        }
+        .syn-correct {
+            color: var(--syn-class);
+            display: none;
+        }
+        .code-row.success .syn-correct {
+            display: inline;
+        }
+        .syn-check-icon { color: #28a745; margin-left: 2px; font-size: 12px; }
+
+        .code-row.error .code-input {
+            border-bottom-color: var(--text-error);
+            animation: shake 0.3s ease-in-out;
+            color: var(--text-error);
+        }
+
+        .code-row.skipped {
+            background-color: var(--bg-row-skipped);
+            opacity: 0.85;
+        }
+        .code-row.skipped .code-input {
+            display: none;
+        }
+        .syn-skipped {
+            color: var(--text-skipped);
+            display: none;
+        }
+        .code-row.skipped .syn-skipped {
+            display: inline;
+        }
+        .skipped-badge {
+            color: var(--text-skipped);
+            font-size: 12px;
+            margin-left: 8px;
+            font-style: italic;
+        }
+
+        /* Buttons inline */
+        .action-tray { display: flex; gap: 5px; margin-left: auto; visibility: hidden; opacity: 0; transition: opacity 0.2s;}
+        .code-row.active .action-tray { visibility: visible; opacity: 1; }
+        .code-row:hover .action-tray { visibility: visible; opacity: 1; }
+
+        .btn-text {
+            background: transparent; border: none; color: var(--text-muted);
+            cursor: pointer; font-family: inherit; font-size: 11px; padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .btn-text:hover { color: var(--text-white); background: rgba(255,255,255,0.1); }
+        .btn-text.run { border: 1px solid #4d4d4d; }
+        .btn-text.run:hover { border-color: #888; }
+        .btn-text.skip { color: var(--text-skipped); border: 1px solid rgba(215, 186, 125, 0.4); }
+        .btn-text.skip:hover { background: rgba(215, 186, 125, 0.15); color: #fff; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+
+        /* Status Bar */
+        .status-bar {
+            background-color: var(--bg-statusbar); height: 22px; display: flex;
+            justify-content: space-between; align-items: center; color: var(--text-white);
+            font-size: 12px; padding: 0 10px;
+        }
+        .status-left, .status-right { display: flex; gap: 15px; }
+        .status-item { cursor: pointer; }
+        .status-item:hover { background-color: rgba(255, 255, 255, 0.2); }
+
+        /* Success Overlay */
+        .success-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .success-box {
+            background-color: var(--bg-sidebar); padding: 30px; border-radius: 5px;
+            border: 1px solid var(--accent); text-align: center; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+        .success-box h3 { color: var(--text-white); margin-bottom: 15px; font-size: 24px; }
+        .success-box p { color: var(--text-main); margin-bottom: 20px; }
+        
+        .btn-primary {
+            background-color: var(--accent); color: var(--text-white); border: none;
+            padding: 8px 20px; border-radius: 3px; cursor: pointer; font-size: 14px; margin-top: 10px;
+        }
+        .btn-primary:hover { background-color: #006bb3; }
+    </style>
+</head>
+<body>
+    <div class="app-container" style="display:flex; flex-direction:column; height: 100vh;">
+        <!-- Title Bar -->
+        <header class="title-bar">
+            <div class="window-controls">
+                <span class="dot close"></span>
+                <span class="dot minimize"></span>
+                <span class="dot maximize"></span>
+            </div>
+            <div class="menu-bar">
+                <span>File</span><span>Edit</span><span>Selection</span><span>View</span><span>Go</span><span>Run</span><span>Terminal</span><span>Help</span>
+            </div>
+            <div class="title">vocabulary.txt - Học Từ Vựng</div>
+        </header>
+
+        <!-- Main Body -->
+        <main class="main-body">
+            <!-- Activity Bar -->
+            <aside class="activity-bar">
+                <div class="icon active" title="Explorer">📂</div>
+                <div class="icon" title="Search">🔍</div>
+                <div class="icon" title="Source Control">🌿</div>
+                <div class="icon" title="Run and Debug">▶️</div>
+                <div class="icon" title="Extensions">🧩</div>
+            </aside>
+
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-header">EXPLORER</div>
+                <div class="sidebar-section">
+                    <div class="section-title">VOCA-PROJECT</div>
+                    <div class="upload-area">
+                        <label for="file-upload" class="upload-btn">📁 Mở File (.txt, .csv)</label>
+                        <input id="file-upload" type="file" accept=".txt,.csv" />
+                        <p class="upload-hint">STT|Từ vựng|Nghĩa</p>
+                    </div>
+                    <div id="file-list" class="file-list hidden">
+                        <div class="file-item active">📄&nbsp;<span id="filename-display">vocabulary.txt</span></div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Editor Area -->
+            <section class="editor-area">
+                <div class="editor-tabs">
+                    <div class="tab active">📄 <span id="tab-filename">vocabulary.txt</span></div>
+                </div>
+                <div class="breadcrumbs">VOCA-PROJECT > <span id="breadcrumb-filename">vocabulary.txt</span></div>
+
+                <div class="editor-content" id="editor-content">
+                    <div id="placeholder-message" class="empty-state">
+                        <h2>Sẵn sàng code (học) từ vựng!</h2>
+                        <p>Upload file chứa từ vựng định dạng <span class="syn-keyword">STT|Từ vựng|Nghĩa</span> để bắt đầu.</p>
+                        <p style="margin-top:20px; color:#555; text-align:left;">
+                            <span class="syn-comment">// Gợi ý phím tắt:</span><br>
+                            <span class="syn-var">Enter</span>: <span class="syn-string">"Chạy/Kiểm tra mã"</span><br>
+                            <span class="syn-var">Tab</span> hoặc <span class="syn-var">RightArrow</span> hoặc <span class="syn-var">Ctrl+Shift+S</span>: <span class="syn-string">"Skip"</span>
+                        </p>
+                    </div>
+                    <!-- Code Editor Rows will go here -->
+                    <div id="code-container" class="code-container hidden"></div>
+                </div>
+                
+                <div id="success-overlay" class="success-overlay hidden">
+                    <div class="success-box">
+                        <h3>🎉 Build Succeeded!</h3>
+                        <p>Bạn đã hoàn thành tốt bài học ngày hôm nay.</p>
+                        <p id="stats-summary" style="margin-bottom: 20px; font-size: 13px; color: var(--syn-class);"></p>
+                        <button id="reset-btn" class="btn-primary">Load File Mới</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Status Bar -->
+        <footer class="status-bar">
+            <div class="status-left">
+                <span class="status-item">🌿 master*</span>
+                <span class="status-item">❌ 0 <span style="color:var(--text-skipped)">⚠️</span> <span id="skip-count">0</span></span>
+            </div>
+            <div class="status-right">
+                <span class="status-item" id="progress-status">0/0 đã code</span>
+                <span class="status-item">Ln 1, Col 1</span>
+                <span class="status-item">Spaces: 4</span>
+                <span class="status-item">UTF-8</span>
+                <span class="status-item">JavaScript React</span>
+            </div>
+        </footer>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileUpload = document.getElementById('file-upload');
+            const placeholderMessage = document.getElementById('placeholder-message');
+            const codeContainer = document.getElementById('code-container');
+            const progressStatus = document.getElementById('progress-status');
+            const fileList = document.getElementById('file-list');
+            const successOverlay = document.getElementById('success-overlay');
+            const resetBtn = document.getElementById('reset-btn');
+            const skipCountEl = document.getElementById('skip-count');
+            const statsSummary = document.getElementById('stats-summary');
+
+            let vocabularyData = [];
+            let indentLevels = [];
+            let currentIndex = 0;
+            let skippedCount = 0;
+
+            // Audio Setup
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            let audioCtx;
+
+            function initAudio() {
+                if (!audioCtx) audioCtx = new AudioContext();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+            }
+
+            function playSound(type) {
+                try {
+                    initAudio();
+                    const osc = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    
+                    if (type === 'ding') {
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(900, audioCtx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(1400, audioCtx.currentTime + 0.1);
+                        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                        gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                        osc.start(audioCtx.currentTime);
+                        osc.stop(audioCtx.currentTime + 0.5);
+                    } else if (type === 'buzz') {
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+                        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                        gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                        osc.start(audioCtx.currentTime);
+                        osc.stop(audioCtx.currentTime + 0.3);
+                    } else if (type === 'skip') {
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(500, audioCtx.currentTime);
+                        osc.frequency.linearRampToValueAtTime(350, audioCtx.currentTime + 0.15);
+                        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                        gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.02);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                        osc.start(audioCtx.currentTime);
+                        osc.stop(audioCtx.currentTime + 0.15);
+                    }
+
+                    osc.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                } catch (e) {
+                    console.log("Audio disabled or unsupported");
+                }
+            }
+
+            fileUpload.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    parseData(event.target.result, file.name);
+                };
+                reader.readAsText(file);
+            });
+
+            resetBtn.addEventListener('click', () => {
+                successOverlay.classList.add('hidden');
+                fileUpload.click();
+            });
+
+            function generateIndentation(length) {
+                const levels = [0];
+                let current = 0;
+                for (let i = 1; i < length; i++) {
+                    const rnd = Math.random();
+                    if (rnd > 0.6) {
+                        current += 1; // indent forward
+                    } else if (rnd < 0.3 && current > 0) {
+                        current -= 1; // indent backward
+                    }
+                    if (current > 3) current = 3; // max indent 3
+                    levels.push(current);
+                }
+                return levels;
+            }
+
+            function parseData(content, filename) {
+                vocabularyData = [];
+                const lines = content.split(/\r?\n/);
+                for (let line of lines) {
+                    if (!line.trim()) continue;
+                    const parts = line.split('|');
+                    if (parts.length >= 3) {
+                        vocabularyData.push({ stt: parts[0].trim(), word: parts[1].trim(), meaning: parts[2].trim() });
+                    }
+                }
+
+                if (vocabularyData.length === 0) {
+                    alert("Không có liệu hợp lệ.");
+                    return;
+                }
+                
+                document.querySelector('.title').textContent = `${filename} - Học Từ Vựng`;
+                document.getElementById('filename-display').textContent = filename;
+                document.getElementById('tab-filename').textContent = filename;
+                document.getElementById('breadcrumb-filename').textContent = filename;
+                
+                indentLevels = generateIndentation(vocabularyData.length);
+                fileList.classList.remove('hidden');
+                startApp();
+            }
+
+            function startApp() {
+                placeholderMessage.classList.add('hidden');
+                codeContainer.classList.remove('hidden');
+                codeContainer.innerHTML = '';
+                
+                currentIndex = 0;
+                skippedCount = 0;
+                skipCountEl.textContent = '0';
+                
+                updateProgress();
+                renderRow(currentIndex);
+            }
+
+            // Syntax Templates generator array
+            const codeTemplates = [
+                // 1. const word1 = "input"; // meaning
+                (id, mean) => `
+                    <span class="syn-keyword">const</span>
+                    <span class="syn-var">vocab_${id}</span>
+                    <span class="syn-operator">=</span>
+                    <span class="syn-string">"</span>
+                    <span class="input-wrapper"></span>
+                    <span class="syn-string">"</span><span class="syn-operator">;</span>
+                    <span class="syn-comment">// ${mean}</span>
+                `,
+                // 2. let w_1 = { val: "input" }; /* meaning */
+                (id, mean) => `
+                    <span class="syn-keyword">let</span>
+                    <span class="syn-var">w_${id}</span>
+                    <span class="syn-operator">=</span>
+                    <span class="syn-bracket">{</span>
+                    <span class="syn-var">val</span><span class="syn-operator">:</span>
+                    <span class="syn-string">'</span>
+                    <span class="input-wrapper"></span>
+                    <span class="syn-string">'</span>
+                    <span class="syn-bracket">}</span><span class="syn-operator">;</span>
+                    <span class="syn-comment">/* ${mean} */</span>
+                `,
+                // 3. return `input`; // meaning
+                (id, mean) => `
+                    <span class="syn-control">return</span>
+                    <span class="syn-string">\`</span>
+                    <span class="input-wrapper"></span>
+                    <span class="syn-string">\`</span><span class="syn-operator">;</span>
+                    <span class="syn-comment">// ${mean}</span>
+                `,
+                // 4. function get() { return "input"; } // meaning
+                (id, mean) => `
+                    <span class="syn-keyword">function</span>
+                    <span class="syn-func">getVal_${id}</span><span class="syn-bracket">()</span>
+                    <span class="syn-bracket">{</span>
+                    <span class="syn-control">return</span>
+                    <span class="syn-string">"</span>
+                    <span class="input-wrapper"></span>
+                    <span class="syn-string">"</span><span class="syn-operator">;</span>
+                    <span class="syn-bracket">}</span>
+                    <span class="syn-comment">// ${mean}</span>
+                `,
+                // 5. export const n_1 = "input"; // meaning
+                (id, mean) => `
+                    <span class="syn-control">export</span>
+                    <span class="syn-keyword">const</span>
+                    <span class="syn-var">n_${id}</span>
+                    <span class="syn-operator">=</span>
+                    <span class="syn-string">"</span>
+                    <span class="input-wrapper"></span>
+                    <span class="syn-string">"</span><span class="syn-operator">;</span>
+                    <span class="syn-comment">// ${mean}</span>
+                `,
+                // 6. data.push("input"); // meaning
+                (id, mean) => `
+                    <span class="syn-var">data</span><span class="syn-operator">.</span><span class="syn-func">push</span><span class="syn-bracket">(</span>
+                    <span class="syn-string">"</span>
+                    <span class="input-wrapper"></span>
+                    <span class="syn-string">"</span>
+                    <span class="syn-bracket">)</span><span class="syn-operator">;</span>
+                    <span class="syn-comment">// ${mean}</span>
+                `
+            ];
+
+            function renderRow(index) {
+                if (index >= vocabularyData.length) {
+                    finishApp();
+                    return;
+                }
+
+                const data = vocabularyData[index];
+                const indent = indentLevels[index] * 28; // 28px per indent level
+                
+                // Pick random template
+                const tplIndex = Math.floor(Math.random() * codeTemplates.length);
+                const templateHTML = codeTemplates[tplIndex](data.stt, data.meaning);
+
+                const row = document.createElement('div');
+                row.className = 'code-row active';
+                row.id = `row-${index}`;
+                
+                row.innerHTML = `
+                    <div class="line-number">${data.stt}</div>
+                    <div class="code-content" style="padding-left: ${indent}px">
+                        ${templateHTML}
+                        
+                        <div class="action-tray">
+                            <button class="btn-text run" title="Run (Enter)">▶</button>
+                            <button class="btn-text skip" title="Skip (Tab / Ctrl+Shift+S)">⏭</button>
+                        </div>
+                    </div>
+                `;
+
+                // Inject Input and States
+                const wrapper = row.querySelector('.input-wrapper');
+                wrapper.innerHTML = `
+                    <input type="text" class="code-input" id="input-${index}" spellcheck="false" autocomplete="off" />
+                    <span class="syn-correct">"${data.word}" <span class="syn-check-icon">✓</span></span>
+                    <span class="syn-skipped">"${data.word}" <span class="skipped-badge">// skipped</span></span>
+                `;
+
+                codeContainer.appendChild(row);
+                row.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                
+                const input = row.querySelector('.code-input');
+                const btnRun = row.querySelector('.run');
+                const btnSkip = row.querySelector('.skip');
+                
+                input.addEventListener('focus', initAudio, { once: true });
+                input.focus();
+
+                // Dynamic width adjust for input
+                input.addEventListener('input', function() {
+                    const l = this.value.length;
+                    this.style.width = Math.max(80, l * 9 + 20) + 'px';
+                });
+
+                input.addEventListener('keydown', (e) => {
+                    initAudio();
+                    if (e.key === 'Enter') {
+                        check(index, input.value, data.word);
+                    } 
+                    else if (e.key === 'Tab' || e.key === 'ArrowRight' || 
+                            (e.shiftKey && e.ctrlKey && e.key.toLowerCase() === 's')) {
+                        e.preventDefault();
+                        skip(index, data.word);
+                    }
+                });
+
+                btnRun.addEventListener('click', () => check(index, input.value, data.word));
+                btnSkip.addEventListener('click', () => skip(index, data.word));
+            }
+
+            function check(index, val, expected) {
+                const row = document.getElementById(`row-${index}`);
+                const input = row.querySelector('.code-input');
+                
+                if (val.trim().toLowerCase() === expected.toLowerCase()) {
+                    playSound('ding');
+                    row.classList.remove('active', 'error');
+                    row.classList.add('success');
+                    
+                    currentIndex++;
+                    updateProgress();
+                    
+                    // Slightly delay next row for nice fluent feeling
+                    setTimeout(() => renderRow(currentIndex), 100);
+                } else {
+                    playSound('buzz');
+                    row.classList.remove('error');
+                    void row.offsetWidth;
+                    row.classList.add('error');
+                    input.focus();
+                }
+            }
+
+            function skip(index, expected) {
+                playSound('skip');
+                const row = document.getElementById(`row-${index}`);
+                row.classList.remove('active', 'error');
+                row.classList.add('skipped');
+                
+                skippedCount++;
+                skipCountEl.textContent = skippedCount;
+                
+                currentIndex++;
+                updateProgress();
+                setTimeout(() => renderRow(currentIndex), 100);
+            }
+
+            function updateProgress() {
+                progressStatus.textContent = `${currentIndex}/${vocabularyData.length} đã code`;
+                
+                const items = document.querySelectorAll('.status-item');
+                if (items.length >= 7 && currentIndex < vocabularyData.length) {
+                    items[6].textContent = `Ln ${vocabularyData[currentIndex].stt}, Col ${Math.floor(Math.random()*15+5)}`;
+                }
+            }
+
+            function finishApp() {
+                setTimeout(() => {
+                    playSound('ding');
+                    statsSummary.textContent = `Lines of Code (Đúng): ${vocabularyData.length - skippedCount} | Comments (Bỏ qua): ${skippedCount}`;
+                    successOverlay.classList.remove('hidden');
+                }, 400);
+            }
+        });
+    </script>
+</body>
+</html>
